@@ -1,17 +1,35 @@
 document.addEventListener("DOMContentLoaded", () => {
+
   const activitiesList = document.getElementById("activities-list");
   const activitySelect = document.getElementById("activity");
   const signupForm = document.getElementById("signup-form");
   const messageDiv = document.getElementById("message");
+  // Toolbar elements
+  const categoryFilter = document.getElementById("category-filter");
+  const sortFilter = document.getElementById("sort-filter");
+  const searchFilter = document.getElementById("search-filter");
 
-  // Function to fetch activities from API
+  // Function to fetch activities from API with filters
   async function fetchActivities() {
     try {
-      const response = await fetch("/activities");
+      // Build query params from toolbar
+      const params = new URLSearchParams();
+      if (categoryFilter && categoryFilter.value) {
+        params.append("category", categoryFilter.value);
+      }
+      if (sortFilter && sortFilter.value) {
+        params.append("sort", sortFilter.value);
+      }
+      if (searchFilter && searchFilter.value.trim()) {
+        params.append("search", searchFilter.value.trim());
+      }
+      const url = "/activities" + (params.toString() ? `?${params.toString()}` : "");
+      const response = await fetch(url);
       const activities = await response.json();
 
-      // Clear loading message
+      // Clear loading message and dropdown
       activitiesList.innerHTML = "";
+      if (activitySelect) activitySelect.innerHTML = '<option value="">-- Select an activity --</option>';
 
       // Populate activities list
       Object.entries(activities).forEach(([name, details]) => {
@@ -41,6 +59,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <h4>${name}</h4>
           <p>${details.description}</p>
           <p><strong>Schedule:</strong> ${details.schedule}</p>
+          <p><strong>Category:</strong> ${details.category || "N/A"}</p>
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
           <div class="participants-container">
             ${participantsHTML}
@@ -50,10 +69,12 @@ document.addEventListener("DOMContentLoaded", () => {
         activitiesList.appendChild(activityCard);
 
         // Add option to select dropdown
-        const option = document.createElement("option");
-        option.value = name;
-        option.textContent = name;
-        activitySelect.appendChild(option);
+        if (activitySelect) {
+          const option = document.createElement("option");
+          option.value = name;
+          option.textContent = name;
+          activitySelect.appendChild(option);
+        }
       });
 
       // Add event listeners to delete buttons
@@ -153,6 +174,16 @@ document.addEventListener("DOMContentLoaded", () => {
       messageDiv.classList.remove("hidden");
       console.error("Error signing up:", error);
     }
+  });
+
+
+  // Toolbar event listeners
+  if (categoryFilter) categoryFilter.addEventListener("change", fetchActivities);
+  if (sortFilter) sortFilter.addEventListener("change", fetchActivities);
+  if (searchFilter) searchFilter.addEventListener("input", () => {
+    // Debounce search
+    clearTimeout(searchFilter._debounceTimeout);
+    searchFilter._debounceTimeout = setTimeout(fetchActivities, 300);
   });
 
   // Initialize app
